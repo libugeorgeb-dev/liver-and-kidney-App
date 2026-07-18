@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organ Health Check — Kidney &amp; Liver Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#152238; --ink-soft:#4b5a72; --paper:#EEF1F6; --panel:#ffffff; --line:#d7dce6;
+    --teal:#0B6E4F; --teal-soft:#e4f2ec; --gold:#C79A2B; --gold-soft:#faf1dd;
+    --red:#C7434F; --red-soft:#fbe7e9; --deep:#0d1b2e;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans', sans-serif;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:36px 20px 80px;}
+  header.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:20px;flex-wrap:wrap;}
+  .eyebrow{font-family:'IBM Plex Mono', monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:0 0 8px;}
+  h1{font-family:'Fraunces', serif;font-weight:600;font-size:clamp(28px,4vw,40px);margin:0;letter-spacing:-0.01em;}
+  .hero-note{max-width:320px;font-size:13.5px;color:var(--ink-soft);}
+
+  .tabs{display:flex;gap:8px;margin-bottom:22px;}
+  .tab-btn{
+    font-family:'IBM Plex Sans', sans-serif;font-weight:600;font-size:14px;
+    padding:10px 22px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink-soft);cursor:pointer;
+  }
+  .tab-btn.active{background:var(--teal);color:#fff;border-color:var(--teal);}
+
+  .organ-view{display:none;}
+  .organ-view.active{display:block;}
+
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;align-items:start;}
+  @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 26px 8px;}
+  .section-title{font-family:'Fraunces', serif;font-size:19px;font-weight:600;margin:0 0 4px;display:flex;align-items:baseline;gap:10px;}
+  .section-title .num{font-family:'IBM Plex Mono', monospace;font-size:12px;color:var(--teal);}
+  .section-sub{color:var(--ink-soft);font-size:12.5px;margin:0 0 16px;}
+
+  .field{margin-bottom:20px;}
+  .field label{display:flex;justify-content:space-between;font-size:13.5px;font-weight:500;margin-bottom:8px;}
+  .field label .val{font-family:'IBM Plex Mono', monospace;color:var(--teal);font-weight:500;}
+  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:3px;background:var(--line);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--teal);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--teal);cursor:pointer;margin-top:-6.5px;}
+  input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--teal);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--teal);cursor:pointer;}
+
+  select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-family:'IBM Plex Sans', sans-serif;font-size:13.5px;color:var(--ink);}
+
+  .toggle-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);}
+  .toggle-row:last-child{border-bottom:none;}
+  .toggle-row span{font-size:13.5px;font-weight:500;}
+  .switch{position:relative;width:40px;height:22px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slide{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.15s;cursor:pointer;}
+  .slide::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .switch input:checked + .slide{background:var(--teal);}
+  .switch input:checked + .slide::before{transform:translateX(18px);}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
+
+  .result-card{position:sticky;top:20px;background:var(--deep);color:#eef1f6;border-radius:14px;padding:26px;overflow:hidden;}
+  .result-eyebrow{font-family:'IBM Plex Mono', monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7fa99b;margin:0 0 6px;}
+  .risk-number{font-family:'Fraunces', serif;font-weight:700;font-size:56px;line-height:1;margin:14px 0 0;letter-spacing:-0.02em;}
+  .risk-label{display:inline-block;margin-top:10px;padding:5px 12px;border-radius:20px;font-size:12.5px;font-weight:600;letter-spacing:.02em;}
+  .risk-desc{font-size:13px;color:#c3cbda;margin-top:16px;line-height:1.6;}
+  .factor-list{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);}
+  .factor-list h4{font-family:'IBM Plex Mono', monospace;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#8fa0bd;margin:0 0 10px;font-weight:500;}
+  .factor{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;color:#dbe1ec;}
+  .factor b{color:#fff;font-weight:600;}
+
+  .disclaimer{margin-top:28px;font-size:12px;color:var(--ink-soft);background:var(--teal-soft);border:1px solid #cfe4da;border-radius:10px;padding:14px 16px;line-height:1.55;}
+  .disclaimer b{color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Organ Health Check — Educational Demo</p>
+      <h1>Kidney &amp; liver risk estimator</h1>
+    </div>
+    <p class="hero-note">Pick an organ, adjust the panel to match a clinical profile, and see an instant risk estimate with the drivers behind it.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-kidney-btn" onclick="switchTab('kidney')">Kidney</button>
+    <button class="tab-btn" id="tab-liver-btn" onclick="switchTab('liver')">Liver</button>
+  </div>
+
+  <!-- ======================= KIDNEY ======================= -->
+  <div class="organ-view active" id="view-kidney">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <p class="section-title"><span class="num">01</span> Demographics</p>
+          <p class="section-sub">Basic profile</p>
+          <div class="field"><label>Age <span class="val" id="k-age-val">52</span></label><input type="range" id="k-age" min="18" max="90" value="52"></div>
+          <div class="two-col">
+            <div class="field"><label>Sex</label><select id="k-sex"><option value="1">Male</option><option value="0">Female</option></select></div>
+            <div class="field"><label>BMI <span class="val" id="k-bmi-val">26.0</span></label><input type="range" id="k-bmi" min="15" max="50" step="0.1" value="26"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">02</span> Blood pressure &amp; sugar</p>
+          <p class="section-sub">Hypertension and diabetes indicators</p>
+          <div class="field"><label>Systolic BP <span class="val" id="k-sbp-val">130</span> mmHg</label><input type="range" id="k-systolic_bp" min="90" max="210" value="130"></div>
+          <div class="field"><label>Diastolic BP <span class="val" id="k-dbp-val">80</span> mmHg</label><input type="range" id="k-diastolic_bp" min="55" max="130" value="80"></div>
+          <div class="field"><label>HbA1c <span class="val" id="k-hba1c-val">5.4</span>%</label><input type="range" id="k-hba1c" min="4" max="13" step="0.1" value="5.4"></div>
+          <div class="toggle-row"><span>Diagnosed diabetes</span><label class="switch"><input type="checkbox" id="k-diabetes"><span class="slide"></span></label></div>
+          <div class="toggle-row"><span>Diagnosed hypertension</span><label class="switch"><input type="checkbox" id="k-hypertension"><span class="slide"></span></label></div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">03</span> Kidney function labs</p>
+          <p class="section-sub">Core markers of kidney health</p>
+          <div class="field"><label>eGFR <span class="val" id="k-egfr-val">90</span> mL/min</label><input type="range" id="k-egfr" min="5" max="130" value="90"></div>
+          <div class="field"><label>Creatinine <span class="val" id="k-creatinine-val">0.9</span> mg/dL</label><input type="range" id="k-creatinine" min="0.4" max="8" step="0.1" value="0.9"></div>
+          <div class="field"><label>BUN <span class="val" id="k-bun-val">14</span> mg/dL</label><input type="range" id="k-bun" min="5" max="100" value="14"></div>
+          <div class="field"><label>Urine ACR <span class="val" id="k-acr-val">10</span> mg/g</label><input type="range" id="k-urine_acr" min="1" max="300" value="10"></div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">04</span> Other labs &amp; history</p>
+          <p class="section-sub">Electrolytes, blood count, lifestyle</p>
+          <div class="field"><label>Sodium <span class="val" id="k-sodium-val">140</span> mmol/L</label><input type="range" id="k-sodium" min="125" max="152" value="140"></div>
+          <div class="field"><label>Potassium <span class="val" id="k-potassium-val">4.2</span> mmol/L</label><input type="range" id="k-potassium" min="2.8" max="7.5" step="0.1" value="4.2"></div>
+          <div class="field"><label>Hemoglobin <span class="val" id="k-hgb-val">14.0</span> g/dL</label><input type="range" id="k-hemoglobin" min="6" max="18" step="0.1" value="14"></div>
+          <div class="toggle-row"><span>Current smoker</span><label class="switch"><input type="checkbox" id="k-smoker"><span class="slide"></span></label></div>
+          <div class="toggle-row"><span>Family history of kidney disease</span><label class="switch"><input type="checkbox" id="k-family_history"><span class="slide"></span></label></div>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <p class="result-eyebrow">Estimated kidney risk</p>
+        <p class="risk-number" id="k-risk-number">—%</p>
+        <span class="risk-label" id="k-risk-label">Calculating…</span>
+        <p class="risk-desc" id="k-risk-desc">Adjust the panel — the estimate updates instantly.</p>
+        <div class="factor-list"><h4>Top contributing factors</h4><div id="k-factor-items"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= LIVER ======================= -->
+  <div class="organ-view" id="view-liver">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <p class="section-title"><span class="num">01</span> Demographics</p>
+          <p class="section-sub">Basic profile</p>
+          <div class="field"><label>Age <span class="val" id="l-age-val">48</span></label><input type="range" id="l-age" min="18" max="90" value="48"></div>
+          <div class="two-col">
+            <div class="field"><label>Sex</label><select id="l-sex"><option value="1">Male</option><option value="0">Female</option></select></div>
+            <div class="field"><label>BMI <span class="val" id="l-bmi-val">26.0</span></label><input type="range" id="l-bmi" min="15" max="50" step="0.1" value="26"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">02</span> Liver enzymes</p>
+          <p class="section-sub">ALT, AST, ALP, GGT</p>
+          <div class="field"><label>ALT <span class="val" id="l-alt-val">25</span> U/L</label><input type="range" id="l-alt" min="5" max="400" value="25"></div>
+          <div class="field"><label>AST <span class="val" id="l-ast-val">25</span> U/L</label><input type="range" id="l-ast" min="5" max="400" value="25"></div>
+          <div class="field"><label>ALP <span class="val" id="l-alp-val">80</span> U/L</label><input type="range" id="l-alp" min="30" max="400" value="80"></div>
+          <div class="field"><label>GGT <span class="val" id="l-ggt-val">30</span> U/L</label><input type="range" id="l-ggt" min="5" max="500" value="30"></div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">03</span> Liver function labs</p>
+          <p class="section-sub">Synthesis and clearance markers</p>
+          <div class="field"><label>Bilirubin <span class="val" id="l-bili-val">0.8</span> mg/dL</label><input type="range" id="l-bilirubin" min="0.1" max="15" step="0.1" value="0.8"></div>
+          <div class="field"><label>Albumin <span class="val" id="l-alb-val">4.2</span> g/dL</label><input type="range" id="l-albumin" min="1.5" max="5.5" step="0.1" value="4.2"></div>
+          <div class="field"><label>Total protein <span class="val" id="l-tp-val">7.1</span> g/dL</label><input type="range" id="l-total_protein" min="4" max="9.5" step="0.1" value="7.1"></div>
+          <div class="field"><label>Platelets <span class="val" id="l-plt-val">250</span> x10⁹/L</label><input type="range" id="l-platelets" min="30" max="500" value="250"></div>
+          <div class="field"><label>INR <span class="val" id="l-inr-val">1.0</span></label><input type="range" id="l-inr" min="0.8" max="4" step="0.1" value="1.0"></div>
+        </div>
+
+        <div class="card">
+          <p class="section-title"><span class="num">04</span> Lifestyle &amp; history</p>
+          <p class="section-sub">Alcohol, diabetes, family history</p>
+          <div class="field"><label>Alcohol units / week <span class="val" id="l-alc-val">4</span></label><input type="range" id="l-alcohol_units_per_week" min="0" max="90" value="4"></div>
+          <div class="toggle-row"><span>Diagnosed diabetes</span><label class="switch"><input type="checkbox" id="l-diabetes"><span class="slide"></span></label></div>
+          <div class="toggle-row"><span>Family history of liver disease</span><label class="switch"><input type="checkbox" id="l-family_history"><span class="slide"></span></label></div>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <p class="result-eyebrow">Estimated liver risk</p>
+        <p class="risk-number" id="l-risk-number">—%</p>
+        <span class="risk-label" id="l-risk-label">Calculating…</span>
+        <p class="risk-desc" id="l-risk-desc">Adjust the panel — the estimate updates instantly.</p>
+        <div class="factor-list"><h4>Top contributing factors</h4><div id="l-factor-items"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="disclaimer">
+    <b>Not a medical device.</b> This calculator runs simplified statistical models trained on
+    synthetic (computer-generated) data meant to loosely resemble known kidney and liver risk
+    patterns. It is provided for educational exploration only and cannot diagnose or rule out any
+    condition. Please talk to a licensed healthcare professional about your actual health.
+  </p>
+</div>
+
+<script>
+function switchTab(organ){
+  document.getElementById('view-kidney').classList.toggle('active', organ === 'kidney');
+  document.getElementById('view-liver').classList.toggle('active', organ === 'liver');
+  document.getElementById('tab-kidney-btn').classList.toggle('active', organ === 'kidney');
+  document.getElementById('tab-liver-btn').classList.toggle('active', organ === 'liver');
+}
+
+function bucket(p){
+  if (p < 0.20) return {name:"Low", bg:"var(--teal-soft)", fg:"#0B6E4F",
+    desc:"Few active risk factors present. Keep up healthy habits and routine checkups."};
+  if (p < 0.50) return {name:"Moderate", bg:"var(--gold-soft)", fg:"#8a6a15",
+    desc:"A few factors are pushing risk upward. Worth discussing with a doctor at your next visit."};
+  if (p < 0.75) return {name:"High", bg:"var(--red-soft)", fg:"#a5313c",
+    desc:"Several risk factors are compounding. A clinical evaluation is strongly advised."};
+  return {name:"Very High", bg:"#f6d9dc", fg:"#8f1f2a",
+    desc:"Multiple significant risk factors present. Please seek a professional medical evaluation."};
+}
+
+function renderResult(prefix, prob, factors){
+  document.getElementById(prefix+"-risk-number").textContent = (prob*100).toFixed(1) + "%";
+  const b = bucket(prob);
+  const label = document.getElementById(prefix+"-risk-label");
+  label.textContent = b.name + " risk";
+  label.style.background = b.bg;
+  label.style.color = b.fg;
+  document.getElementById(prefix+"-risk-desc").textContent = b.desc;
+
+  const list = document.getElementById(prefix+"-factor-items");
+  list.innerHTML = "";
+  const top = factors.filter(f => f.val > 0.02).sort((a,b) => b.val - a.val).slice(0,4);
+  if (top.length === 0){
+    list.innerHTML = `<div class="factor"><span>No major risk drivers detected</span></div>`;
+  }
+  top.forEach(f => {
+    const row = document.createElement("div");
+    row.className = "factor";
+    row.innerHTML = `<span>${f.label}</span><b>+${f.val.toFixed(2)}</b>`;
+    list.appendChild(row);
+  });
+}
+
+// -------------------------------------------------------------- KIDNEY --
+const kidneyIds = ["age","sex","bmi","systolic_bp","diastolic_bp","hba1c","diabetes",
+  "hypertension","egfr","creatinine","bun","urine_acr","sodium","potassium",
+  "hemoglobin","smoker","family_history"];
+const kEls = {};
+kidneyIds.forEach(id => kEls[id] = document.getElementById("k-"+id));
+
+function kGetVal(id){
+  const el = kEls[id];
+  if (el.type === "checkbox") return el.checked ? 1 : 0;
+  return parseFloat(el.value);
+}
+
+function computeKidneyRisk(v){
+  let z = -5.5;
+  z += 0.035 * v.age;
+  z += 0.05 * (100 - v.egfr);
+  z += 0.9 * (v.egfr < 60 ? 1 : 0);
+  z += 0.7 * (v.creatinine > 1.3 ? 1 : 0);
+  z += 0.8 * (v.urine_acr >= 30 ? 1 : 0);
+  z += 0.5 * (v.systolic_bp > 140 ? 1 : 0);
+  z += 0.4 * (v.diastolic_bp > 90 ? 1 : 0);
+  z += 0.6 * (v.hba1c >= 6.5 ? 1 : 0);
+  z += 0.35 * (v.age > 60 ? 1 : 0);
+  z += 0.3 * v.smoker;
+  z += 0.35 * v.family_history;
+  z += 0.02 * (v.bmi - 25);
+  return 1 / (1 + Math.exp(-z));
+}
+
+function kidneyContributions(v){
+  return [
+    {label:"Age", val: 0.035 * v.age},
+    {label:"Low eGFR", val: 0.9 * (v.egfr < 60 ? 1 : 0)},
+    {label:"High creatinine", val: 0.7 * (v.creatinine > 1.3 ? 1 : 0)},
+    {label:"Elevated urine ACR", val: 0.8 * (v.urine_acr >= 30 ? 1 : 0)},
+    {label:"High systolic BP", val: 0.5 * (v.systolic_bp > 140 ? 1 : 0)},
+    {label:"High diastolic BP", val: 0.4 * (v.diastolic_bp > 90 ? 1 : 0)},
+    {label:"Elevated HbA1c", val: 0.6 * (v.hba1c >= 6.5 ? 1 : 0)},
+    {label:"Age over 60", val: 0.35 * (v.age > 60 ? 1 : 0)},
+    {label:"Smoking", val: 0.3 * v.smoker},
+    {label:"Family history", val: 0.35 * v.family_history},
+  ];
+}
+
+function updateKidney(){
+  const v = {};
+  kidneyIds.forEach(id => v[id] = kGetVal(id));
+  document.getElementById("k-age-val").textContent = v.age;
+  document.getElementById("k-bmi-val").textContent = v.bmi.toFixed(1);
+  document.getElementById("k-sbp-val").textContent = v.systolic_bp;
+  document.getElementById("k-dbp-val").textContent = v.diastolic_bp;
+  document.getElementById("k-hba1c-val").textContent = v.hba1c.toFixed(1);
+  document.getElementById("k-egfr-val").textContent = v.egfr;
+  document.getElementById("k-creatinine-val").textContent = v.creatinine.toFixed(1);
+  document.getElementById("k-bun-val").textContent = v.bun;
+  document.getElementById("k-acr-val").textContent = v.urine_acr;
+  document.getElementById("k-sodium-val").textContent = v.sodium;
+  document.getElementById("k-potassium-val").textContent = v.potassium.toFixed(1);
+  document.getElementById("k-hgb-val").textContent = v.hemoglobin.toFixed(1);
+
+  const prob = computeKidneyRisk(v);
+  renderResult("k", prob, kidneyContributions(v));
+}
+kidneyIds.forEach(id => kEls[id].addEventListener("input", updateKidney));
+
+// -------------------------------------------------------------- LIVER --
+const liverIds = ["age","sex","bmi","alt","ast","alp","ggt","bilirubin","albumin",
+  "total_protein","platelets","inr","alcohol_units_per_week","diabetes","family_history"];
+const lEls = {};
+liverIds.forEach(id => lEls[id] = document.getElementById("l-"+id));
+
+function lGetVal(id){
+  const el = lEls[id];
+  if (el.type === "checkbox") return el.checked ? 1 : 0;
+  return parseFloat(el.value);
+}
+
+function computeLiverRisk(v){
+  let z = -4.0;
+  z += 0.02 * v.age;
+  z += 0.3 * v.sex;
+  z += 0.03 * Math.max(v.bmi - 25, 0);
+  z += 0.6 * (v.alt > 40 ? 1 : 0);
+  z += 0.6 * (v.ast > 40 ? 1 : 0);
+  z += 0.7 * (v.bilirubin > 1.2 ? 1 : 0);
+  z += 0.6 * (v.albumin < 3.5 ? 1 : 0);
+  z += 0.5 * (v.inr > 1.2 ? 1 : 0);
+  z += 0.5 * (v.bmi > 30 ? 1 : 0);
+  z += 0.45 * v.diabetes;
+  z += 0.55 * (v.alcohol_units_per_week > 21 ? 1 : 0);
+  z += 0.3 * v.family_history;
+  return 1 / (1 + Math.exp(-z));
+}
+
+function liverContributions(v){
+  return [
+    {label:"Age", val: 0.02 * v.age},
+    {label:"Elevated ALT", val: 0.6 * (v.alt > 40 ? 1 : 0)},
+    {label:"Elevated AST", val: 0.6 * (v.ast > 40 ? 1 : 0)},
+    {label:"Elevated bilirubin", val: 0.7 * (v.bilirubin > 1.2 ? 1 : 0)},
+    {label:"Low albumin", val: 0.6 * (v.albumin < 3.5 ? 1 : 0)},
+    {label:"High INR", val: 0.5 * (v.inr > 1.2 ? 1 : 0)},
+    {label:"BMI over 30", val: 0.5 * (v.bmi > 30 ? 1 : 0)},
+    {label:"Diabetes", val: 0.45 * v.diabetes},
+    {label:"Heavy alcohol use", val: 0.55 * (v.alcohol_units_per_week > 21 ? 1 : 0)},
+    {label:"Family history", val: 0.3 * v.family_history},
+  ];
+}
+
+function updateLiver(){
+  const v = {};
+  liverIds.forEach(id => v[id] = lGetVal(id));
+  document.getElementById("l-age-val").textContent = v.age;
+  document.getElementById("l-bmi-val").textContent = v.bmi.toFixed(1);
+  document.getElementById("l-alt-val").textContent = v.alt;
+  document.getElementById("l-ast-val").textContent = v.ast;
+  document.getElementById("l-alp-val").textContent = v.alp;
+  document.getElementById("l-ggt-val").textContent = v.ggt;
+  document.getElementById("l-bili-val").textContent = v.bilirubin.toFixed(1);
+  document.getElementById("l-alb-val").textContent = v.albumin.toFixed(1);
+  document.getElementById("l-tp-val").textContent = v.total_protein.toFixed(1);
+  document.getElementById("l-plt-val").textContent = v.platelets;
+  document.getElementById("l-inr-val").textContent = v.inr.toFixed(1);
+  document.getElementById("l-alc-val").textContent = v.alcohol_units_per_week;
+
+  const prob = computeLiverRisk(v);
+  renderResult("l", prob, liverContributions(v));
+}
+liverIds.forEach(id => lEls[id].addEventListener("input", updateLiver));
+
+updateKidney();
+updateLiver();
+</script>
+</body>
+</html>
